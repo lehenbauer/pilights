@@ -546,9 +546,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
       case OPT_GETROW: {
         Tcl_Obj **rowList = (Tcl_Obj **)ckalloc (sizeof(Tcl_Obj *) * pData->nLights * 3);
 	Tcl_Obj **rlp;
-	unsigned char *r;
+	unsigned char *rp;
 	int row;
-	int nElements = pData->nLights * 3;
 	int i;
 
 	if (objc != 3) {
@@ -560,11 +559,19 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainrow (interp);
         }
 
-	for (i = 0, r = pData->rowData[row], rlp = rowList; i < nElements; i++) {
-	    *rlp++ = Tcl_NewIntObj (LED_TO_PIXEL(*r++));
+	for (i = 0, rp = pData->rowData[row], rlp = rowList; i < pData->nLights; i++) {
+	    int r, g, b;
+
+	    g = LED_TO_PIXEL(*rp++);
+	    r = LED_TO_PIXEL(*rp++);
+	    b = LED_TO_PIXEL(*rp++);
+
+	    *rlp++ = Tcl_NewIntObj (r);
+	    *rlp++ = Tcl_NewIntObj (g);
+	    *rlp++ = Tcl_NewIntObj (b);
 	}
 
-	Tcl_SetObjResult (interp, Tcl_NewListObj (nElements, rowList));
+	Tcl_SetObjResult (interp, Tcl_NewListObj (pData->nLights * 3, rowList));
 	ckfree ((char *)rowList);
 	break;
       }
