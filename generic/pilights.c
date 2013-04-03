@@ -253,18 +253,18 @@ pilights_cmdNameObjToGdImagePtr (Tcl_Interp *interp, Tcl_Obj *commandNameObj, gd
 }
 
 static int
-plights_spi_write (pilights_clientData *pilightsClientData, tclspi_clientData *spiData, int firstRow, int nRows, int delayUsecs) {
+plights_spi_write (pilights_clientData *pData, tclspi_clientData *spiData, int firstRow, int nRows, int delayUsecs) {
     int row, ret;
     struct spi_ioc_transfer spi;
 
     spi.delay_usecs = delayUsecs;
     spi.rx_buf = (unsigned long) NULL;
-    spi.len = pilightsClientData->nRowBytes;
+    spi.len = pData->nRowBytes;
     spi.speed_hz = spiData->writeSpeed;
     spi.bits_per_word = 8;
 
     for (row = firstRow; row < firstRow + nRows; row++) {
-	unsigned char *rowPtr = pilightsClientData->rowData[row];
+	unsigned char *rowPtr = pData->rowData[row];
 
         spi.tx_buf = (unsigned long) rowPtr;
 
@@ -305,22 +305,31 @@ int
 pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int         optIndex;
+    pilights_clientData *pData = (pilights_clientData *)cData;
 
     static CONST char *options[] = {
+	"write",
+	"nLights",
+	"nRows",
 	"fillrows",
 	"fillpixels",
-	"write",
 	"copyrows",
 	"copy_from_image",
+	"getrow",
+	"setrow",
 	(char *)NULL
     };
 
     enum options {
+	OPT_WRITE,
+	OPT_NLIGHTS,
+	OPT_NROWS,
 	OPT_FILLROWS,
 	OPT_FILLPIXELS,
-	OPT_WRITE,
 	OPT_COPYROWS,
-	OPT_COPY_FROM_IMAGE
+	OPT_COPY_FROM_IMAGE,
+	OPT_GETROW,
+	OPT_SETROW
     };
 
     if (objc == 1) {
@@ -334,6 +343,26 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
     }
 
     switch ((enum options) optIndex) {
+      case OPT_NLIGHTS: {
+	if (objc != 2) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
+
+	Tcl_SetObjResult (interp, Tcl_NewIntObj (pData->nLights));
+	break;
+      }
+
+      case OPT_NROWS: {
+	if (objc != 2) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
+
+	Tcl_SetObjResult (interp, Tcl_NewIntObj (pData->nRows));
+	break;
+      }
+
       case OPT_FILLROWS: {
 	int firstRow, nRows;
 	int r, g, b;
@@ -363,7 +392,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainb (interp);
        }
 
-	pilightsFillRows ((pilights_clientData *)cData, firstRow, nRows, r, g, b);
+	pilightsFillRows (pData, firstRow, nRows, r, g, b);
 	break;
       }
 
@@ -399,7 +428,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainb (interp);
        }
 
-	pilightsFillPixels ((pilights_clientData *)cData, row, firstPixel, nPixels, r, g, b);
+	pilightsFillPixels (pData, row, firstPixel, nPixels, r, g, b);
 	break;
       }
 
@@ -437,7 +466,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
        }
 
        for (row = firstRow; row < nRows; row++) {
-	    ret = plights_spi_write (cData, spiClientData, firstRow, nRows, delay);
+	    ret = plights_spi_write (pData, spiClientData, firstRow, nRows, delay);
 	    if (ret < 0) {
 		Tcl_AppendResult (interp, "can't perform spi transfer: ", Tcl_PosixError (interp), NULL);
 		return TCL_ERROR;
@@ -508,6 +537,73 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	pilights_copyGDPixels (cData, im, x, y, firstRow, firstPixel, nPixels);
 	break;
       }
+
+      case OPT_GETROW: {
+        Tcl_Obj **rowList = (Tcl_Obj **)ckalloc (sizeof(Tcl_Obj *) * pData->nLights * 3);
+	Tcl_Obj **rlp;
+	unsigned char *r;
+	int row;
+	int nElements = pData->nLights * 3;
+	int i;
+
+	if (objc != 3) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "row");
+	    return TCL_ERROR;
+	}
+
+        if (Tcl_GetIntFromObj (interp, objv[2], &row) == TCL_ERROR) {
+	   return pilights_complainrow (interp);
+        }
+
+	for (i = 0, r = pData->rowData[row], rlp = rowList; i < nElements; i++) {
+	    *rlp++ = Tcl_NewIntObj (LED_TO_PIXEL(*r++));
+	}
+
+	Tcl_SetObjResult (interp, Tcl_NewListObj (nElements, rowList));
+	ckfree ((char *)rowList);
+	break;
+      }
+
+      case OPT_SETROW: {
+	unsigned char *r;
+	int row;
+	int nElements = pData->nLights * 3;
+	Tcl_Obj **listObjv;
+	int listObjc;
+	int li;
+	int pixel;
+
+	if (objc != 4) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "row list");
+	    return TCL_ERROR;
+	}
+
+        if (Tcl_GetIntFromObj (interp, objv[2], &row) == TCL_ERROR) {
+	   return pilights_complainrow (interp);
+        }
+
+	if (Tcl_ListObjGetElements (interp, objv[3], &listObjc, &listObjv) == TCL_ERROR) {
+	    return TCL_ERROR;
+	}
+
+	if (listObjc == 0) {
+	    return TCL_ERROR;
+	}
+
+	for (pixel = 0, li = 0, r = pData->rowData[row]; pixel < nElements; pixel++, li++) {
+	    int value;
+
+	    if (li >= listObjc) {
+	        li = 0;
+	    }
+
+	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &value) == TCL_ERROR) {
+	        return TCL_ERROR;
+	    }
+	    *r++ = PIXEL_TO_LED(value);
+	}
+	break;
+      }
     }
 
     return TCL_OK;
@@ -537,24 +633,28 @@ pilights_newObject (Tcl_Interp *interp, Tcl_Obj *nameObj, int nLights, int nRows
 {
     char              *newName = Tcl_GetString (nameObj);;
     char               autoObjName[64];
-    pilights_clientData  *pilightsClientData;
+    pilights_clientData  *pData;
     int row;
 
-    pilightsClientData = (pilights_clientData *)ckalloc (sizeof (pilights_clientData));
+    pData = (pilights_clientData *)ckalloc (sizeof (pilights_clientData));
+
+    pData->nLights = nLights;
+    pData->nRows = nRows;
+
     // allocate the array of pointers to rows
-    pilightsClientData->rowData = (unsigned char **) ckalloc (sizeof(unsigned char *) * nRows);
+    pData->rowData = (unsigned char **) ckalloc (sizeof(unsigned char *) * nRows);
 
     // nRowBytes is the number of LEDs times 3 (one each for red, green,
     // and blue) plus some latch bytes on the end.
-    pilightsClientData->nRowBytes = (nLights * 3) + ((nLights + 31) / 32);
+    pData->nRowBytes = (nLights * 3) + ((nLights + 31) / 32);
 
     for (row = 0; row < nRows; row++) {
         unsigned char *ptr;
 
 	// allocate and clear the bytes for a row plus the latch bytes
-        ptr = (unsigned char *) ckalloc (pilightsClientData->nRowBytes);
-	memset (ptr, 0, pilightsClientData->nRowBytes);
-        pilightsClientData->rowData[row] = ptr;
+        ptr = (unsigned char *) ckalloc (pData->nRowBytes);
+	memset (ptr, 0, pData->nRowBytes);
+        pData->rowData[row] = ptr;
     }
 
     /* if new name is "#auto", generate a unique object name */
@@ -577,7 +677,7 @@ pilights_newObject (Tcl_Interp *interp, Tcl_Obj *nameObj, int nLights, int nRows
 	}
     }
 
-    Tcl_CreateObjCommand (interp, newName, pilights_ObjectObjCmd, pilightsClientData, pilights_deleteProc);
+    Tcl_CreateObjCommand (interp, newName, pilights_ObjectObjCmd, pData, pilights_deleteProc);
 
     Tcl_SetObjResult (interp, Tcl_NewStringObj (newName, -1));
     return TCL_OK;

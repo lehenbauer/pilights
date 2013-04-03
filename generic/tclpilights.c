@@ -28,7 +28,7 @@
  */
 
 EXTERN int
-Tclgd_Init(Tcl_Interp *interp)
+Pilights_Init(Tcl_Interp *interp)
 {
     /*
      * This may work with 8.0, but we are using strictly stubs here,
@@ -72,7 +72,7 @@ Tclgd_Init(Tcl_Interp *interp)
  */
 
 EXTERN int
-Tclgd_SafeInit(Tcl_Interp *interp)
+Pilights_SafeInit(Tcl_Interp *interp)
 {
     return TCL_OK;
 }

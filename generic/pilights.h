@@ -12,6 +12,8 @@
 
 #define PIXEL_TO_LED(x) ((x >> 1) | 0x80)
 
+#define LED_TO_PIXEL(x) ((x << 1) & 0xff)
+
 extern int
 pilights_pilightObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 
