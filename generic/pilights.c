@@ -80,7 +80,7 @@ pilights_complainy(Tcl_Interp *interp) {
 
 
 static void
-pilightsFillRows (pilights_clientData *cData, int firstRow, int nRows, int r, int g, int b) {
+pilightsFillRows (pilights_clientData *pData, int firstRow, int nRows, int r, int g, int b) {
     int row;
     int pixel;
     unsigned char *rowPtr;
@@ -91,17 +91,17 @@ pilightsFillRows (pilights_clientData *cData, int firstRow, int nRows, int r, in
     bByte = PIXEL_TO_LED(b);
 
     for (row = firstRow; row < nRows; row++) {
-        rowPtr = cData->rowData[row];
-        for (pixel = 0; pixel < cData->nLights; pixel++) {
-	    *rowPtr++ = rByte;
+        rowPtr = pData->rowData[row];
+        for (pixel = 0; pixel < pData->nLights; pixel++) {
 	    *rowPtr++ = gByte;
+	    *rowPtr++ = rByte;
 	    *rowPtr++ = bByte;
 	}
     }
 }
 
 static void
-pilightsFillPixels (pilights_clientData *cData, int row, int firstPixel, int nPixels, int r, int g, int b) {
+pilightsFillPixels (pilights_clientData *pData, int row, int firstPixel, int nPixels, int r, int g, int b) {
     int pixel, lastPixel;
     unsigned char *rowPtr;
     unsigned char rByte, gByte, bByte;
@@ -110,31 +110,31 @@ pilightsFillPixels (pilights_clientData *cData, int row, int firstPixel, int nPi
     gByte = PIXEL_TO_LED(g);
     bByte = PIXEL_TO_LED(b);
 
-    rowPtr = cData->rowData[row];
+    rowPtr = pData->rowData[row];
 
     lastPixel = firstPixel + nPixels;
-    if (lastPixel > cData->nLights) {
-        lastPixel = cData->nLights;
+    if (lastPixel > pData->nLights) {
+        lastPixel = pData->nLights;
     }
 
     for (pixel = firstPixel; pixel < lastPixel; pixel++) {
-	*rowPtr++ = rByte;
 	*rowPtr++ = gByte;
+	*rowPtr++ = rByte;
 	*rowPtr++ = bByte;
     }
 }
 
 static void
-pilightsCopyRows (pilights_clientData *cData, int firstRow, int destRow, int nRows) {
+pilightsCopyRows (pilights_clientData *pData, int firstRow, int destRow, int nRows) {
     int row;
     unsigned char *rowPtr;
     unsigned char *destRowPtr;
 
     for (row = firstRow; row < nRows; row++, destRow++) {
-        rowPtr = cData->rowData[row];
-	destRowPtr = cData->rowData[destRow];
+        rowPtr = pData->rowData[row];
+	destRowPtr = pData->rowData[destRow];
 
-	memcpy (destRowPtr, rowPtr, cData->nRowBytes);
+	memcpy (destRowPtr, rowPtr, pData->nRowBytes);
     }
 }
 
@@ -154,7 +154,7 @@ pilightsCopyRows (pilights_clientData *cData, int firstRow, int destRow, int nRo
  *----------------------------------------------------------------------
  */
 static void 
-pilights_copyGDPixels (pilights_clientData *cData, gdImagePtr im, int startY, int startX, int startRow, int startPixel, int nPixels)
+pilights_copyGDPixels (pilights_clientData *pData, gdImagePtr im, int startY, int startX, int startRow, int startPixel, int nPixels)
 {
     int x, y;
     int pixel, pixelColor;
@@ -162,19 +162,19 @@ pilights_copyGDPixels (pilights_clientData *cData, gdImagePtr im, int startY, in
     unsigned char *rowPtr;
 
     pixel = startPixel;
-    rowPtr = cData->rowData[row] + 3 * startPixel;
+    rowPtr = pData->rowData[row] + 3 * startPixel;
 
     for (y = startY; (y < im->sy); y++, startX = 0) {
         for (x = startX; (x < im->sx); x++) {
 	    pixelColor = im->trueColor ? gdImageTrueColorPixel (im, x, y) : gdImagePalettePixel (im, x, y);
+	    *rowPtr++ = PIXEL_TO_LED(gdImageGreen (im, pixelColor));
 	    *rowPtr++ = PIXEL_TO_LED(gdImageRed (im, pixelColor));
 	    *rowPtr++ = PIXEL_TO_LED(gdImageBlue (im, pixelColor));
-	    *rowPtr++ = PIXEL_TO_LED(gdImageGreen (im, pixelColor));
 
-	    if (pixel++ >= cData->nLights) {
+	    if (pixel++ >= pData->nLights) {
 	        pixel = 0;
 		row++;
-		rowPtr = cData->rowData[row];
+		rowPtr = pData->rowData[row];
 	    }
 	}
     }
@@ -277,15 +277,15 @@ plights_spi_write (pilights_clientData *pData, tclspi_clientData *spiData, int f
 }
 
 void pilights_deleteProc (ClientData clientData) {
-    pilights_clientData *cData = (pilights_clientData *)clientData;
+    pilights_clientData *pData = (pilights_clientData *)clientData;
     int row;
 
-    for (row = 0; row < cData->nRows; row++) {
-        ckfree ((char *)cData->rowData[row]);
+    for (row = 0; row < pData->nRows; row++) {
+        ckfree ((char *)pData->rowData[row]);
     }
-    ckfree ((char *)cData->rowData);
+    ckfree ((char *)pData->rowData);
 
-    ckfree ((char *)cData);
+    ckfree ((char *)pData);
 }
 
 
@@ -438,6 +438,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	int firstRow;
 	tclspi_clientData *spiClientData;
 	int ret;
+        int i;
+
 
 
 	if ((objc < 4) || (objc > 6)) {
@@ -465,11 +467,14 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   }
        }
 
-       for (row = firstRow; row < nRows; row++) {
-	    ret = plights_spi_write (pData, spiClientData, firstRow, nRows, delay);
+       for (row = firstRow, i = 0; i < nRows; i++) {
+	    ret = plights_spi_write (pData, spiClientData, row++, nRows, delay);
 	    if (ret < 0) {
 		Tcl_AppendResult (interp, "can't perform spi transfer: ", Tcl_PosixError (interp), NULL);
 		return TCL_ERROR;
+	  }
+	  if (row >= pData->nRows) {
+	      row = 0;
 	  }
 	}
       return TCL_OK;
@@ -565,9 +570,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
       }
 
       case OPT_SETROW: {
-	unsigned char *r;
+	unsigned char *rp;
 	int row;
-	int nElements = pData->nLights * 3;
 	Tcl_Obj **listObjv;
 	int listObjc;
 	int li;
@@ -596,19 +600,28 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	    return TCL_ERROR;
 	}
 
-	for (pixel = 0, li = 0, r = pData->rowData[row]; pixel < nElements; pixel++) {
-	    int value;
+	for (pixel = 0, li = 0, rp = pData->rowData[row]; pixel < pData->nLights; pixel++) {
+	    int r, g, b;
 
-	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &value) == TCL_ERROR) {
+	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &r) == TCL_ERROR) {
 	        return TCL_ERROR;
 	    }
 
-	    *r++ = PIXEL_TO_LED(value);
+	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &g) == TCL_ERROR) {
+	        return TCL_ERROR;
+	    }
+
+	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &b) == TCL_ERROR) {
+	        return TCL_ERROR;
+	    }
+
+	    *rp++ = PIXEL_TO_LED(g);
+	    *rp++ = PIXEL_TO_LED(r);
+	    *rp++ = PIXEL_TO_LED(b);
 
 	    if (li >= listObjc) {
 	        li = 0;
 	    }
-
 	}
 	break;
       }
@@ -661,9 +674,15 @@ pilights_newObject (Tcl_Interp *interp, Tcl_Obj *nameObj, int nLights, int nRows
 
 	// allocate and clear the bytes for a row plus the latch bytes
         ptr = (unsigned char *) ckalloc (pData->nRowBytes);
+
+	// NB we really only have to clear the latch bytes at the end or
+	// even make pilightsFillRows do that and let it happen below
 	memset (ptr, 0, pData->nRowBytes);
         pData->rowData[row] = ptr;
     }
+
+    // initialize all rows to black
+    pilightsFillRows (pData, 0, nRows, 0, 0, 0);
 
     /* if new name is "#auto", generate a unique object name */
     if (strcmp (newName, "#auto") == 0) {
