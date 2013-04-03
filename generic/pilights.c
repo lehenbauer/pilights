@@ -418,6 +418,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	"nRows",
 	"fillrows",
 	"setpixels",
+	"clear",
 	"copyrows",
 	"copy_from_image",
 	"getrow",
@@ -434,6 +435,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	OPT_NROWS,
 	OPT_FILLROWS,
 	OPT_SETPIXELS,
+	OPT_CLEAR,
 	OPT_COPYROWS,
 	OPT_COPY_FROM_IMAGE,
 	OPT_GETROW,
@@ -542,6 +544,28 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	break;
       }
 
+      case OPT_CLEAR: {
+	int firstRow, nRows = 1;
+
+	if ((objc < 3) || (objc > 4)) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "firstRow ?nRows?");
+	    return TCL_ERROR;
+	}
+
+       if (Tcl_GetIntFromObj (interp, objv[2], &firstRow) == TCL_ERROR) {
+	   return pilights_complainfirstRow (interp);
+       }
+
+       if (objc == 4) {
+	   if (Tcl_GetIntFromObj (interp, objv[3], &nRows) == TCL_ERROR) {
+	       return pilights_complainnRows (interp);
+	   }
+	}
+
+	pilightsFillRows (pData, firstRow, nRows, 0, 0, 0);
+	break;
+      }
+
       case OPT_SETPIXELS: {
 	int row, firstPixel, nPixels, r, g, b;
 
@@ -574,7 +598,9 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainb (interp);
        }
 
-       if (firstPixel < 0 || firstPixel >= pData->nLights) {
+       if (firstPixel < 0) {
+           firstPixel = 0;
+       } else if (firstPixel >= pData->nLights) {
 	    Tcl_AppendResult (interp, "Error: first pixel is out of range of defined lights", NULL);
 	    return TCL_ERROR;
        }
