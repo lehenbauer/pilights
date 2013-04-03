@@ -454,13 +454,13 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
        }
 
        if (objc > 4) {
-	   if (Tcl_GetIntFromObj (interp, objv[3], &nRows) == TCL_ERROR) {
+	   if (Tcl_GetIntFromObj (interp, objv[4], &nRows) == TCL_ERROR) {
 	       return pilights_complainnRows (interp);
 	   }
        }
 
        if (objc > 5) {
-	   if (Tcl_GetIntFromObj (interp, objv[3], &delay) == TCL_ERROR) {
+	   if (Tcl_GetIntFromObj (interp, objv[5], &delay) == TCL_ERROR) {
 	       return pilights_complaindelay (interp);
 	   }
        }
@@ -587,20 +587,28 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	}
 
 	if (listObjc == 0) {
+	    Tcl_AppendResult (interp, "List must contain at least three elements", NULL);
 	    return TCL_ERROR;
 	}
 
-	for (pixel = 0, li = 0, r = pData->rowData[row]; pixel < nElements; pixel++, li++) {
+	if (listObjc % 3 != 0) {
+	    Tcl_AppendResult (interp, "List length must be a multiple of three", NULL);
+	    return TCL_ERROR;
+	}
+
+	for (pixel = 0, li = 0, r = pData->rowData[row]; pixel < nElements; pixel++) {
 	    int value;
+
+	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &value) == TCL_ERROR) {
+	        return TCL_ERROR;
+	    }
+
+	    *r++ = PIXEL_TO_LED(value);
 
 	    if (li >= listObjc) {
 	        li = 0;
 	    }
 
-	    if (Tcl_GetIntFromObj (interp, listObjv[li++], &value) == TCL_ERROR) {
-	        return TCL_ERROR;
-	    }
-	    *r++ = PIXEL_TO_LED(value);
 	}
 	break;
       }

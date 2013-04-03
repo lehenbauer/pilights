@@ -15,24 +15,28 @@ pilights \- tcl interface to do fancy things with LED vectors.
 .br
 \fIobjName\fB fillrows\fI firstRow lastRow r g b\fR
 .br
-\fIobjName\fB fillpixels\fI row nPixels r g b\fR
+\fIobjName\fB fillpixels\fI row firstPixel nPixels r g b\fR
 .br
-\fIobjName\fB write \fIrow ?nRows? ?delay?\fR
+\fIobjName\fB write \fIspiObject row ?nRows? ?delay?\fR
 .br
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR
 .br
-\fBobjName\fB copy_from_image\fI gdObject x y firstRow firstPixel nPixels\fR
+\fIobjName\fB copy_from_image\fI gdObject x y firstRow firstPixel nPixels\fR
+.br
+\fIobjName\fB getrow\fI row\fR
+.br
+\fIobjName\fB setrow\fI row list\fR
 .br
 .SH DESCRIPTION
-pilights gives Tcl programs the ability to generate sequences for RGB
-lights and emit them over the SPI bus to stuff like the LPD8806 digital RGB LED strips.
+\fIpilights\fR gives Tcl programs the ability to generate sequences for RGB
+lights and emit them over the Raspberry Pi's SPI bus to stuff like LPD8806 digital RGB LED strips.
 .PP
-The \fBpilights\fR command creates a new Tcl command, prepping it with
+The \fBpilights create\fR command creates a new Tcl object, prepping it with
 arrays of bytes for setting up and sending RGB values to many lights
-very quickly.
+very quickly.  Latch bytes are preallocated and configured in-place for convenience runtime performance.  The rows are initialized to black or "off", values of zero for all red, green and blue pixels.
 .PP
-A cool feature, it can take pixels from any image the GD library can
-handle, including PNG, GIF and JPEG, and emit them.
+A cool feature, pilights can take pixels from any image the GD library can
+handle, including PNG, GIF and JPEG, and emit them to the LED strips.
 .PP
 Once an object has been created, it can be manipulated via its name,
 or if the object name is \fB#auto\fR, a unique command name
@@ -48,17 +52,33 @@ reference to that variable, in the same manner as Incr Tcl.
 .PP
 \fIobjName\fB nLights\fR returns the number of lights defined, while
 \fIobjName\fB nRows\fR returns the number of rows defined.
-
-.SH PIXEL-PREPPING FUNCTIONS
 .PP
-\fIobjName\fB fillrows \fIfirstrow lastRow r g b\fR fills the specified rows with the specified RGB colors.  Use 8-bit colors.  They are mapped to 7-bit for emission to the string but we'll keep the interface 8-bit.
+\fBobjName\fB getrow\fI row\fR returns the pixels of the specified as a flat list of red, green and blue values.  If there are 150 lights defined, for instance, a list of 450 integers is returned.
 .PP
-\fIobjName\fB fillpixels\fI row nPixels r g b\fR fills pixels within a row with RGB colors.  Use it multiple times to create patterns within a row.
+.SH PIXEL-SETTING FUNCTIONS
+.PP
+\fIobjName\fB fillrows \fIfirstrow lastRow r g b\fR fills the specified rows with the specified RGB colors.  Use 8-bit colors.  They are mapped to 7-bit for emission to the string but we treat the interface as if it is 8-bit.  For example, 255 255 255 is full brightness even though the LED gets values of 127 127 127.
+.PP
+\fIobjName\fB fillpixels\fI row firstPixel nPixels r g b\fR fills pixels within a row with RGB colors.  Use it multiple times with different RGB components, first pixel and number of pixels to create patterns within a row.
 .PP
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR copies patterns one row to another.
 .PP
 fBobjName\fB copy_from_image\fI gdObject x y firstRow firstPixel nPixels\fR reads pixels from a GD library image (probably loaded from a PNG or GIF) using the tcl.gd package.  This allows pixel sequences of nearly unlimited size and complexity to be created and stored efficiently within PNG24 images.
 .PP
 Pixels are copied pixel-for-pixel.  If the number of pixels requested runs off the end of one row in the pilights object, copying continues with the first pixel of the next row.  Likewise if the row of pixels in the GD image runs out, pixels continued to be sourced from the Xth pixel in the next row.
+.br
+\fBobjName\fB setrow\fI row list\fR sets the pixels of the specified row from a flast list of red, green and blue values.  If the list contains fewer than the needed number of values to contain a red, green and blue value for each pixel, it is repeated circularly until all the pixels are set.  If there are three values in the list, for instance, each pixel will be set to the same red, green and blue values.  If there are six values, the pixels will alternate in pairs.
+.PP
+For sanity, the list must contain a minimum of three elements and its length must be a multiple of three.
+.PP
+Note that since the RGB values are stored lamp-ready and retrieved from that state, the least significant bit of the eight-bit color that was originally set is lost.  A pixel value of one is returned as zero, a pixel value of two or three is returned as two, and so on.
+.PP
+.SH WRITING TO LEDs
+.PP
+To write to LEDs using the SPI bus, you also need the tclspi package.  Set up a tclspi object for talking to the SPI bus by doing a \fIpackage require spi\fR and \fIset spi [spi #auto /dev/spidev0.0]\fR.  
+.PP
+Write a row of pixels to the SPI bus using  \fIobjName\fB write \fIspiObject row ?nRows? ?delay?\fR.  \fIspiObject\fR is a result of a successfully creation of an SPI object by tclspi.  \fIrow\fR is the row number.  \fInRows\fR, if present, specifies the number of rows to write, interating sequentially through the rows.  If absent, only a single row is emitted.
+.PP
+\fIDelay\fR is the delay in microseconds, an argument to the ioctl that tclspi uses to talk to the SPI hardware.
 .PP
 More to come...
