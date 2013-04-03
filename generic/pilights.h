@@ -22,8 +22,9 @@ typedef struct pilights_clientData
 {
     int nRows;
     int nLights;
+    tclspi_clientData *spiData;
+    int mySpiData;
     int nRowBytes;  // nLights * 3 + latch bytes
     unsigned char **rowData;
-    int          destroyOnDelete;
 } pilights_clientData;
 

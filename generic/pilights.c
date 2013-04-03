@@ -260,14 +260,14 @@ pilights_cmdNameObjToGdImagePtr (Tcl_Interp *interp, Tcl_Obj *commandNameObj, gd
 }
 
 static int
-plights_spi_write (pilights_clientData *pData, tclspi_clientData *spiData, int firstRow, int nRows, int delayUsecs) {
+plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int delayUsecs) {
     int row, ret;
     struct spi_ioc_transfer spi;
 
     spi.delay_usecs = delayUsecs;
     spi.rx_buf = (unsigned long) NULL;
     spi.len = pData->nRowBytes;
-    spi.speed_hz = spiData->writeSpeed;
+    spi.speed_hz = pData->spiData->writeSpeed;
     spi.bits_per_word = 8;
 
     for (row = firstRow; row < firstRow + nRows; row++) {
@@ -275,7 +275,7 @@ plights_spi_write (pilights_clientData *pData, tclspi_clientData *spiData, int f
 
         spi.tx_buf = (unsigned long) rowPtr;
 
-	ret = ioctl (spiData->fd, SPI_IOC_MESSAGE(1), &spi);
+	ret = ioctl (pData->spiData->fd, SPI_IOC_MESSAGE(1), &spi);
 	if (ret < 0) {
 	    return ret;
 	}
@@ -293,6 +293,104 @@ void pilights_deleteProc (ClientData clientData) {
     ckfree ((char *)pData->rowData);
 
     ckfree ((char *)pData);
+}
+
+void
+pilights_close (pilights_clientData *pData) {
+    if (pData->spiData == NULL) {
+        return;
+    }
+
+    // if it was an attached object rather than something i opened,
+    // just detach from it
+    if (!pData->mySpiData) {
+        pData->spiData = NULL;
+	return;
+    }
+
+    // we opened it and allocated the spiData structure.  close and
+    // get rid of it.
+    close(pData->spiData->fd);
+    ckfree((char *)pData->spiData);
+    pData->spiData = NULL;
+}
+
+int
+pilights_attach (Tcl_Interp *interp, pilights_clientData *pData, Tcl_Obj *tclspiObj) {
+    // close device if open
+    pilights_close (pData);
+
+    if (pilights_cmdNameObjToSPI (interp, tclspiObj, &pData->spiData) == TCL_ERROR) {
+	return TCL_ERROR;
+    }
+    pData->mySpiData = 0;
+    return TCL_OK;
+}
+
+
+/*
+ * plights_open - open an spi device file (like /dev/spidev0.0) and
+ *   set it up to talk to it
+ *
+ * set read and write for 8-bit, SPI mode 0, 2 MHz.  
+ *
+ *  If you need different settings, use tclspi to set up an object
+ *
+ * returns 0 on success, -1 on failure -- you can use Tcl_PosixError
+ *  after a failure and you should get something reasonable
+ */
+int
+pilights_open (pilights_clientData *pData, char *fileName) {
+    tclspi_clientData *spi;
+
+    // close device if open
+    pilights_close (pData);
+
+    pData->spiData = (tclspi_clientData *)ckalloc (sizeof(tclspi_clientData));
+    pData->mySpiData = 1;
+
+    spi = pData->spiData;
+
+    spi->fd = open (fileName, O_RDWR);
+    if (spi->fd < 0) {
+        spi->fd = 0;
+        return -1;
+    }
+
+    spi->readMode = SPI_MODE_0;
+    spi->writeMode = SPI_MODE_0;
+
+    spi->readBits = 8;
+    spi->writeBits = 8;
+
+    spi->readSpeed = 2000000;
+    spi->writeSpeed = 2000000;
+
+    if (ioctl (spi->fd, SPI_IOC_RD_MODE, &spi->readMode) < 0) {
+        return -1;
+    }
+
+    if (ioctl (spi->fd, SPI_IOC_WR_MODE, &spi->writeMode) < 0) {
+        return -1;
+    }
+
+    if (ioctl (spi->fd, SPI_IOC_RD_BITS_PER_WORD, &spi->readBits) < 0) {
+        return -1;
+    }
+
+    if (ioctl (spi->fd, SPI_IOC_WR_BITS_PER_WORD, &spi->writeBits) < 0) {
+        return -1;
+    }
+
+    if (ioctl (spi->fd, SPI_IOC_RD_MAX_SPEED_HZ, &spi->readSpeed) < 0) {
+        return -1;
+    }
+
+    if (ioctl (spi->fd, SPI_IOC_WR_MAX_SPEED_HZ, &spi->writeSpeed) < 0) {
+        return -1;
+    }
+
+    return 0;
 }
 
 
@@ -324,6 +422,9 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	"copy_from_image",
 	"getrow",
 	"setrow",
+	"open",
+	"close",
+	"attach",
 	(char *)NULL
     };
 
@@ -336,7 +437,10 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	OPT_COPYROWS,
 	OPT_COPY_FROM_IMAGE,
 	OPT_GETROW,
-	OPT_SETROW
+	OPT_SETROW,
+	OPT_OPEN,
+	OPT_CLOSE,
+	OPT_ATTACH
     };
 
     if (objc == 1) {
@@ -367,6 +471,41 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	}
 
 	Tcl_SetObjResult (interp, Tcl_NewIntObj (pData->nRows));
+	break;
+      }
+
+      case OPT_OPEN: {
+	if (objc != 3) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "spiFileName");
+	    return TCL_ERROR;
+	}
+
+	if (pilights_open (pData, Tcl_GetString (objv[2])) < 0) {
+	    Tcl_AppendResult (interp, "error opening or setting up '", Tcl_GetString (objv[2]), "': ", Tcl_PosixError (interp), NULL);
+	    return TCL_ERROR;
+	}
+	break;
+      }
+
+      case OPT_CLOSE: {
+	if (objc != 2) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
+
+	pilights_close (pData);
+	break;
+      }
+
+      case OPT_ATTACH: {
+	if (objc != 3) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "tclspiObject");
+	    return TCL_ERROR;
+	}
+
+	if (pilights_attach (interp, pData, objv[2]) == TCL_ERROR) {
+	    return TCL_ERROR;
+	}
 	break;
       }
 
@@ -448,39 +587,38 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	int row, delay = 0;
 	int nRows = 1;
 	int firstRow;
-	tclspi_clientData *spiClientData;
 	int ret;
         int i;
 
 
-
-	if ((objc < 4) || (objc > 6)) {
-	    Tcl_WrongNumArgs (interp, 2, objv, "spiObject firstRow ?nRows? ?delay?");
+	if ((objc < 3) || (objc > 5)) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "firstRow ?nRows? ?delay?");
 	    return TCL_ERROR;
 	}
 
-	if (pilights_cmdNameObjToSPI (interp, objv[2], &spiClientData) == TCL_ERROR) {
-	    return TCL_ERROR;
-	}
-
-       if (Tcl_GetIntFromObj (interp, objv[3], &firstRow) == TCL_ERROR) {
+       if (Tcl_GetIntFromObj (interp, objv[2], &firstRow) == TCL_ERROR) {
 	   return pilights_complainfirstRow (interp);
        }
 
-       if (objc > 4) {
-	   if (Tcl_GetIntFromObj (interp, objv[4], &nRows) == TCL_ERROR) {
+       if (objc > 3) {
+	   if (Tcl_GetIntFromObj (interp, objv[3], &nRows) == TCL_ERROR) {
 	       return pilights_complainnRows (interp);
 	   }
        }
 
-       if (objc > 5) {
-	   if (Tcl_GetIntFromObj (interp, objv[5], &delay) == TCL_ERROR) {
+       if (objc > 4) {
+	   if (Tcl_GetIntFromObj (interp, objv[4], &delay) == TCL_ERROR) {
 	       return pilights_complaindelay (interp);
 	   }
        }
 
+       if (pData->spiData == NULL) {
+	    Tcl_AppendResult (interp, "must open an SPI device or attach a tclspi object before attempting to write", NULL);
+	    return TCL_ERROR;
+       }
+
        for (row = firstRow, i = 0; i < nRows; i++) {
-	    ret = plights_spi_write (pData, spiClientData, row++, nRows, delay);
+	    ret = plights_spi_write (pData, row++, nRows, delay);
 	    if (ret < 0) {
 		Tcl_AppendResult (interp, "can't perform spi transfer: ", Tcl_PosixError (interp), NULL);
 		return TCL_ERROR;
@@ -680,6 +818,8 @@ pilights_newObject (Tcl_Interp *interp, Tcl_Obj *nameObj, int nLights, int nRows
 
     pData->nLights = nLights;
     pData->nRows = nRows;
+    pData->spiData = NULL;
+    pData->mySpiData = 0;
 
     // allocate the array of pointers to rows
     pData->rowData = (unsigned char **) ckalloc (sizeof(unsigned char *) * nRows);

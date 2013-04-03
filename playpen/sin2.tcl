@@ -16,6 +16,10 @@ proc sinwave {} {
 	set pixel [expr {$half + int(sin($i) * $half)}]
 	#puts "$pixel"
 	lights setpixels 10 $pixel 1 0 0 128
+
+	set pixel2 [expr {int(abs(sin($i * 1.5)) * $::nLEDs)}]
+	lights setpixels 10 $pixel2 1 0 128 0
+
 	lights write 10 1 5000
     }
 }
@@ -25,4 +29,4 @@ if {!$tcl_interactive} {
 } else {
     puts "'sinwave' to see something"
 }
- 
+

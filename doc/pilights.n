@@ -13,11 +13,17 @@ pilights \- tcl interface to do fancy things with LED vectors.
 .br
 \fIobjName\fB nRows\fR
 .br
+\fIobjName\fB open\fI spiDevice\fR
+.br
+\fIobjName\fB close\fR
+.br
+\fIobjName\fB attach\fI tclspiObject\fR
+.br
 \fIobjName\fB fillrows\fI firstRow nRows r g b\fR
 .br
 \fIobjName\fB setpixels\fI row firstPixel nPixels r g b\fR
 .br
-\fIobjName\fB write \fIspiObject row ?nRows? ?delay?\fR
+\fIobjName\fB write \fIrow ?nRows? ?delay?\fR
 .br
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR
 .br
@@ -75,12 +81,23 @@ For sanity, the list must contain a minimum of three elements and its length mus
 .PP
 Note that since the RGB values are stored lamp-ready and retrieved from that state, the least significant bit of the eight-bit color that was originally set is lost.  A pixel value of one is returned as zero, a pixel value of two or three is returned as two, and so on.
 .PP
+.SH SPI INTERFACE ATTACHING AND DETACHING
+To open an SPI device for writing, use \fIobjName\fB open\fI spiDevice\fR.  On the Raspberry Pi, \fIspiDevice\fR is typically \fB/dev/spidev0.0\fR.  This opens configures the SPI interface to default values of read and write SPI mode 0, 8-bits per word, and a speed of two megahertz.
+.PP
+If you wish to use values other than the above, use tclspi to set up the SPI interface in conjunction with the attach method described below.
+.PP
+\fIobjName\fB attach\fI tclspiObject\fR attaches a tclspi object as the source of the SPI device to be talked to.  tclspi can set other modes, bits-per-word and speeds.  See the playpen directory for an example.
+.PP
+Whether attaching the SPI device using the \fIopen\fR method or the \fIattach\fR method, \fIobjName\fB close\fR will close the connection.  If you used pilight's open method then the connection to the device is truly closed.  If you used a tclspi object then the connection is merely detached from the pilights object -- close the device using tclspi when desired.
+.PP
+It is safe to open a device while one is already open.  pilights will close (or detach) the existing device if it is open.
+.PP
 .SH WRITING TO LEDs
 .PP
-To write to LEDs using the SPI bus, you also need the tclspi package.  Set up a tclspi object for talking to the SPI bus by doing a \fIpackage require spi\fR and \fIset spi [spi #auto /dev/spidev0.0]\fR.  
+To write to LEDs using the SPI bus, you must have opened an SPI device or attached a tclspi object that's got one open.  Set up a tclspi object for talking to the SPI bus by doing a \fIpackage require spi\fR and \fIset spi [spi #auto /dev/spidev0.0]\fR.  
 .PP
-Write a row of pixels to the SPI bus using  \fIobjName\fB write \fIspiObject row ?nRows? ?delay?\fR.  \fIspiObject\fR is a result of a successfully creation of an SPI object by tclspi.  \fIrow\fR is the row number.  \fInRows\fR, if present, specifies the number of rows to write, interating sequentially through the rows.  If absent, only a single row is emitted.
+Write a row of pixels to the SPI bus using \fIobjName\fB write \fIrow ?nRows? ?delay?\fR.  \fIrow\fR is the row number.  \fInRows\fR, if present, specifies the number of rows to write, interating sequentially through the rows.  If absent, only a single row is emitted.
 .PP
-\fIDelay\fR is the delay in microseconds, an argument to the ioctl that tclspi uses to talk to the SPI hardware.
+\fIDelay\fR is the delay in microseconds, part of the argument block sent to the SPI device driver using an ioctl call that pilights uses to talk to the SPI hardware.  The default delay is zero.
 .PP
 More to come...
