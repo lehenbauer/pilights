@@ -96,3 +96,16 @@ proc play {} {
         lights write $row 1 5000
     }
 }
+
+
+proc sinwave {row nRows startRadians increment centerPixel pixelWidth r g b} {
+    puts "sinwave row $row, nRows $nRows, startRadians $startRadians, increment $increment, centerPixel $centerPixel, pixelWidth $pixelWidth, r $r, g $g, b $b"
+    set half [expr {$pixelWidth / 2}]
+    set radians $startRadians
+    for {set i $row} {$i < $nRows} {incr i} {
+        set pixel [expr {$centerPixel + int(sin($radians) * $half)}]
+	lights setpixels $row $pixel 1 $r $g $b
+	incr row
+	set radians [expr $radians + $increment]
+    }
+}

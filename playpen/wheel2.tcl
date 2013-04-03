@@ -75,14 +75,42 @@ proc rampalong {} {
     }
 }
 
+proc slidein  {h s v} {
+    variable rampH
+    variable rampS
+    variable rampV
+
+    lassign [hsv_to_rgb $h $s $v] r g b
+
+    puts "slide"
+
+    for {set i 0} {$i < [lights nLights]} {incr i} {
+        lights setpixels 10 $i 1 $r $g $b
+	lights write 10 1 7000
+    }
+
+    set rampH $h
+    set rampS $s
+    set rampV $v
+}
+
 proc rampart {} {
     while 1 {
 	set h [expr {rand()}]
 	set s [expr {rand()}]
 	set v 0.1
 
+	if {rand() < 0.2} {
+	    slidein $h $s $v
+	    continue
+	}
+
 	puts "ramping to h $h, s $s, v $v"
 
 	rampto $h $s $v 500
     }
+}
+
+if {!$tcl_interactive} {
+    rampart
 }
