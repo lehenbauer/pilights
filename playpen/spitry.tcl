@@ -35,3 +35,5 @@ after 500
 
 $lights write $spi 0
 
+$lights fillrows 10 1 0 0 10
+$lights setpixels 10 50 10 10 0 0

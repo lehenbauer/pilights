@@ -83,6 +83,7 @@ static void
 pilightsFillRows (pilights_clientData *pData, int firstRow, int nRows, int r, int g, int b) {
     int row;
     int pixel;
+    int i;
     unsigned char *rowPtr;
     unsigned char rByte, gByte, bByte;
 
@@ -90,12 +91,16 @@ pilightsFillRows (pilights_clientData *pData, int firstRow, int nRows, int r, in
     gByte = PIXEL_TO_LED(g);
     bByte = PIXEL_TO_LED(b);
 
-    for (row = firstRow; row < nRows; row++) {
-        rowPtr = pData->rowData[row];
+    for (row = firstRow, i = 0; i < nRows; i++) {
+        rowPtr = pData->rowData[row++];
         for (pixel = 0; pixel < pData->nLights; pixel++) {
 	    *rowPtr++ = gByte;
 	    *rowPtr++ = rByte;
 	    *rowPtr++ = bByte;
+	}
+
+	if (row >= pData->nRows) {
+	    row = 0;
 	}
     }
 }
@@ -110,12 +115,14 @@ pilightsFillPixels (pilights_clientData *pData, int row, int firstPixel, int nPi
     gByte = PIXEL_TO_LED(g);
     bByte = PIXEL_TO_LED(b);
 
-    rowPtr = pData->rowData[row];
+    assert ((firstPixel >= 0) && (firstPixel < pData->nLights));
 
     lastPixel = firstPixel + nPixels;
     if (lastPixel > pData->nLights) {
         lastPixel = pData->nLights;
     }
+
+    rowPtr = pData->rowData[row] + firstPixel * 3;
 
     for (pixel = firstPixel; pixel < lastPixel; pixel++) {
 	*rowPtr++ = gByte;
@@ -312,7 +319,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	"nLights",
 	"nRows",
 	"fillrows",
-	"fillpixels",
+	"setpixels",
 	"copyrows",
 	"copy_from_image",
 	"getrow",
@@ -325,7 +332,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	OPT_NLIGHTS,
 	OPT_NROWS,
 	OPT_FILLROWS,
-	OPT_FILLPIXELS,
+	OPT_SETPIXELS,
 	OPT_COPYROWS,
 	OPT_COPY_FROM_IMAGE,
 	OPT_GETROW,
@@ -380,15 +387,15 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainnRows (interp);
        }
 
-       if (Tcl_GetIntFromObj (interp, objv[3], &r) == TCL_ERROR) {
+       if (Tcl_GetIntFromObj (interp, objv[4], &r) == TCL_ERROR) {
 	   return pilights_complainr (interp);
        }
 
-       if (Tcl_GetIntFromObj (interp, objv[3], &g) == TCL_ERROR) {
+       if (Tcl_GetIntFromObj (interp, objv[5], &g) == TCL_ERROR) {
 	   return pilights_complaing (interp);
        }
 
-       if (Tcl_GetIntFromObj (interp, objv[3], &b) == TCL_ERROR) {
+       if (Tcl_GetIntFromObj (interp, objv[6], &b) == TCL_ERROR) {
 	   return pilights_complainb (interp);
        }
 
@@ -396,7 +403,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	break;
       }
 
-      case OPT_FILLPIXELS: {
+      case OPT_SETPIXELS: {
 	int row, firstPixel, nPixels, r, g, b;
 
 	if (objc != 8) {
@@ -426,6 +433,11 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 
        if (Tcl_GetIntFromObj (interp, objv[7], &b) == TCL_ERROR) {
 	   return pilights_complainb (interp);
+       }
+
+       if (firstPixel < 0 || firstPixel >= pData->nLights) {
+	    Tcl_AppendResult (interp, "Error: first pixel is out of range of defined lights", NULL);
+	    return TCL_ERROR;
        }
 
 	pilightsFillPixels (pData, row, firstPixel, nPixels, r, g, b);

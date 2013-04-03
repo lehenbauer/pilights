@@ -13,9 +13,9 @@ pilights \- tcl interface to do fancy things with LED vectors.
 .br
 \fIobjName\fB nRows\fR
 .br
-\fIobjName\fB fillrows\fI firstRow lastRow r g b\fR
+\fIobjName\fB fillrows\fI firstRow nRows r g b\fR
 .br
-\fIobjName\fB fillpixels\fI row firstPixel nPixels r g b\fR
+\fIobjName\fB setpixels\fI row firstPixel nPixels r g b\fR
 .br
 \fIobjName\fB write \fIspiObject row ?nRows? ?delay?\fR
 .br
@@ -57,9 +57,11 @@ reference to that variable, in the same manner as Incr Tcl.
 .PP
 .SH PIXEL-SETTING FUNCTIONS
 .PP
-\fIobjName\fB fillrows \fIfirstrow lastRow r g b\fR fills the specified rows with the specified RGB colors.  Use 8-bit colors.  They are mapped to 7-bit for emission to the string but we treat the interface as if it is 8-bit.  For example, 255 255 255 is full brightness even though the LED gets values of 127 127 127.
+\fIobjName\fB fillrows \fIfirstrow nRows r g b\fR fills the specified rows with the specified RGB colors.  Use 8-bit colors.  They are mapped to 7-bit for emission to the string but we treat the interface as if it is 8-bit.  For example, 255 255 255 is full brightness even though the LED gets values of 127 127 127.
 .PP
-\fIobjName\fB fillpixels\fI row firstPixel nPixels r g b\fR fills pixels within a row with RGB colors.  Use it multiple times with different RGB components, first pixel and number of pixels to create patterns within a row.
+If \fInRows\fR requests more rows than exist, pilights wraps around to the 0th row and continues from there.
+.PP
+\fIobjName\fB setpixels\fI row firstPixel nPixels r g b\fR fills pixels within a row with RGB colors.  Use it multiple times with different RGB components, first pixel and number of pixels to create patterns within a row.
 .PP
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR copies patterns one row to another.
 .PP

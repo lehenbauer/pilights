@@ -9,6 +9,7 @@
 #include <tclspi.h>
 #include <tclgd.h>
 #include <string.h>
+#include <assert.h>
 
 #define PIXEL_TO_LED(x) ((x >> 1) | 0x80)
 
