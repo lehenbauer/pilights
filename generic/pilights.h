@@ -26,5 +26,6 @@ typedef struct pilights_clientData
     int mySpiData;
     int nRowBytes;  // nLights * 3 + latch bytes
     unsigned char **rowData;
+    gdImagePtr im;
 } pilights_clientData;
 

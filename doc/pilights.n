@@ -17,7 +17,7 @@ pilights \- tcl interface to do fancy things with LED vectors.
 .br
 \fIobjName\fB close\fR
 .br
-\fIobjName\fB attach\fI tclspiObject\fR
+\fIobjName\fB attach_spi\fI tclspiObject\fR
 .br
 \fIobjName\fB fillrows\fI firstRow nRows r g b\fR
 .br
@@ -27,7 +27,9 @@ pilights \- tcl interface to do fancy things with LED vectors.
 .br
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR
 .br
-\fIobjName\fB copy_from_image\fI gdObject x y firstRow firstPixel nPixels\fR
+\fIobjName\fB attach_gd\fI tclgdObject\fR
+.br
+\fIobjName\fB copy_from_image\fI firstRow nRows y x firstPixel nPixels\fR
 .br
 \fIobjName\fB getrow\fI row\fR
 .br
@@ -71,7 +73,11 @@ If \fInRows\fR requests more rows than exist, pilights wraps around to the 0th r
 .PP
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR copies patterns one row to another.
 .PP
-fBobjName\fB copy_from_image\fI gdObject x y firstRow firstPixel nPixels\fR reads pixels from a GD library image (probably loaded from a PNG or GIF) using the tcl.gd package.  This allows pixel sequences of nearly unlimited size and complexity to be created and stored efficiently within PNG24 images.
+.PP
+\fIobjName\fB copy_from_image\fI firstRow nRows y x firstPixel nPixels\fR
+ reads pixels from a GD library image (probably loaded from a PNG or GIF) using the tcl.gd package.  This allows pixel sequences of nearly unlimited size and complexity to be created and stored efficiently within PNG24 images.
+.PP
+Before using copy_from_image, attach an existing tclgd image using the \fIattach_gd\fR method.
 .PP
 Pixels are copied pixel-for-pixel.  If the number of pixels requested runs off the end of one row in the pilights object, copying continues with the first pixel of the next row.  Likewise if the row of pixels in the GD image runs out, pixels continued to be sourced from the Xth pixel in the next row.
 .br
@@ -84,11 +90,11 @@ Note that since the RGB values are stored lamp-ready and retrieved from that sta
 .SH SPI INTERFACE ATTACHING AND DETACHING
 To open an SPI device for writing, use \fIobjName\fB open\fI spiDevice\fR.  On the Raspberry Pi, \fIspiDevice\fR is typically \fB/dev/spidev0.0\fR.  This opens configures the SPI interface to default values of read and write SPI mode 0, 8-bits per word, and a speed of two megahertz.
 .PP
-If you wish to use values other than the above, use tclspi to set up the SPI interface in conjunction with the attach method described below.
+If you wish to use values other than the above, use tclspi to set up the SPI interface in conjunction with the attach_spi method described below.
 .PP
-\fIobjName\fB attach\fI tclspiObject\fR attaches a tclspi object as the source of the SPI device to be talked to.  tclspi can set other modes, bits-per-word and speeds.  See the playpen directory for an example.
+\fIobjName\fB attach_spi\fI tclspiObject\fR attaches a tclspi object as the source of the SPI device to be talked to.  tclspi can set other modes, bits-per-word and speeds.  See the playpen directory for an example.
 .PP
-Whether attaching the SPI device using the \fIopen\fR method or the \fIattach\fR method, \fIobjName\fB close\fR will close the connection.  If you used pilight's open method then the connection to the device is truly closed.  If you used a tclspi object then the connection is merely detached from the pilights object -- close the device using tclspi when desired.
+Whether attaching the SPI device using the \fIopen\fR method or the \fIattach_spi\fR method, \fIobjName\fB close\fR will close the connection.  If you used pilight's open method then the connection to the device is truly closed.  If you used a tclspi object then the connection is merely detached from the pilights object -- close the device using tclspi when desired.
 .PP
 It is safe to open a device while one is already open.  pilights will close (or detach) the existing device if it is open.
 .PP

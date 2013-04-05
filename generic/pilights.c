@@ -161,28 +161,71 @@ pilightsCopyRows (pilights_clientData *pData, int firstRow, int destRow, int nRo
  *----------------------------------------------------------------------
  */
 static void 
-pilights_copyGDPixels (pilights_clientData *pData, gdImagePtr im, int startY, int startX, int startRow, int startPixel, int nPixels)
+pilights_copyGDPixels (pilights_clientData *pData, int startRow, int nRows, int startY, int startX, int startPixel, int nPixels)
 {
     int x, y;
-    int pixel, pixelColor;
+    int pixelColor;
     int row = startRow;
     unsigned char *rowPtr;
+    gdImagePtr im = pData->im;
+    int i;
 
-    pixel = startPixel;
-    rowPtr = pData->rowData[row] + 3 * startPixel;
+    printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
 
-    for (y = startY; (y < im->sy); y++, startX = 0) {
-        for (x = startX; (x < im->sx); x++) {
+    assert (pData->im != NULL);
+
+    if (startPixel > pData->nLights) {
+        printf("\nstartPixel > nData->nLights\n");
+        return;
+    }
+
+    if (startX > im->sx) {
+        printf("\nstartX > im->sx\n");
+        return;
+    }
+
+    if (startY > im->sy) {
+        printf("\nstartY > im->sy\n");
+	return;
+    } 
+
+    if (startRow < 0) {
+        startRow = 0;
+    }
+
+    if (startX < 0) {
+        startX = 0;
+    }
+
+    if (startY < 0) {
+        startY = 0;
+    }
+
+    if (startPixel + nPixels > pData->nLights) {
+        nPixels = pData->nLights - startPixel;
+    }
+
+    if (im->sx - startX < nPixels) {
+        nPixels = im->sx - startX;
+    }
+
+    printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
+
+    while (nRows-- > 0) {
+	rowPtr = pData->rowData[row] + 3 * startPixel;
+        for (i = 0, y = startY; i < nPixels; i++, x++) {
 	    pixelColor = im->trueColor ? gdImageTrueColorPixel (im, x, y) : gdImagePalettePixel (im, x, y);
 	    *rowPtr++ = PIXEL_TO_LED(gdImageGreen (im, pixelColor));
 	    *rowPtr++ = PIXEL_TO_LED(gdImageRed (im, pixelColor));
 	    *rowPtr++ = PIXEL_TO_LED(gdImageBlue (im, pixelColor));
+	}
+	    
+        if (row++ >= pData->nRows) {
+	    row = 0;
+	}
 
-	    if (pixel++ >= pData->nLights) {
-	        pixel = 0;
-		row++;
-		rowPtr = pData->rowData[row];
-	    }
+	if (++y >= im->sy) {
+	    y = 0;
 	}
     }
 }
@@ -259,9 +302,14 @@ pilights_cmdNameObjToGdImagePtr (Tcl_Interp *interp, Tcl_Obj *commandNameObj, gd
     return TCL_OK;
 }
 
+/*
+ * pilights_spi_write - given a pilights client data structure, first row,
+ *  number of rows and delay in microseconds, write 0 or more rows to
+ *  the SPI device
+ */
 static int
 plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int delayUsecs) {
-    int row, ret;
+    int i, row, ret;
     struct spi_ioc_transfer spi;
 
     spi.delay_usecs = delayUsecs;
@@ -270,7 +318,9 @@ plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int dela
     spi.speed_hz = pData->spiData->writeSpeed;
     spi.bits_per_word = 8;
 
-    for (row = firstRow; row < firstRow + nRows; row++) {
+    printf("plights_spi_write firstRow %d, nRows %d, delay %d\n", firstRow, nRows, delayUsecs);
+
+    for (i = 0, row = firstRow; i < nRows; i++) {
 	unsigned char *rowPtr = pData->rowData[row];
 
         spi.tx_buf = (unsigned long) rowPtr;
@@ -279,29 +329,27 @@ plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int dela
 	if (ret < 0) {
 	    return ret;
 	}
+
+	if (row++ >= nRows) {
+	    row = 0;
+	}
     }
     return 0;
 }
 
-void pilights_deleteProc (ClientData clientData) {
-    pilights_clientData *pData = (pilights_clientData *)clientData;
-    int row;
-
-    for (row = 0; row < pData->nRows; row++) {
-        ckfree ((char *)pData->rowData[row]);
-    }
-    ckfree ((char *)pData->rowData);
-
-    ckfree ((char *)pData);
-}
-
+/*
+ * pilights_close - close the connection to an SPI device if open, of
+ *  if we're attached to a tclspi SPI-communicating object, forget
+ *  about it.
+ *
+ */
 void
 pilights_close (pilights_clientData *pData) {
     if (pData->spiData == NULL) {
         return;
     }
 
-    // if it was an attached object rather than something i opened,
+    // if it was an attached tclspi object rather than something i opened,
     // just detach from it
     if (!pData->mySpiData) {
         pData->spiData = NULL;
@@ -315,15 +363,40 @@ pilights_close (pilights_clientData *pData) {
     pData->spiData = NULL;
 }
 
+/*
+ * pilights_deleteProc - free all the memory and stuff
+ *
+ */
+void pilights_deleteProc (ClientData clientData) {
+    pilights_clientData *pData = (pilights_clientData *)clientData;
+    int row;
+
+    pilights_close (pData);
+
+    for (row = 0; row < pData->nRows; row++) {
+        ckfree ((char *)pData->rowData[row]);
+    }
+    ckfree ((char *)pData->rowData);
+
+    ckfree ((char *)pData);
+}
+
+/*
+ * pilights_attach_spi - attach a tclspi object, from which we will get the
+ *   fd to talk to the SPI bus through
+ */
 int
-pilights_attach (Tcl_Interp *interp, pilights_clientData *pData, Tcl_Obj *tclspiObj) {
+pilights_attach_spi (Tcl_Interp *interp, pilights_clientData *pData, Tcl_Obj *tclspiObj) {
     // close device if open
     pilights_close (pData);
 
     if (pilights_cmdNameObjToSPI (interp, tclspiObj, &pData->spiData) == TCL_ERROR) {
 	return TCL_ERROR;
     }
+
+    // mark that we shouldn't really close the device or free memory on close
     pData->mySpiData = 0;
+
     return TCL_OK;
 }
 
@@ -393,6 +466,22 @@ pilights_open (pilights_clientData *pData, char *fileName) {
     return 0;
 }
 
+/*
+ * pilights_attach_gd - attach a tcl.gd object, from which we will get the
+ *   GD image to read from
+ */
+int
+pilights_attach_gd (Tcl_Interp *interp, pilights_clientData *pData, Tcl_Obj *tclgdObj) {
+    gdImagePtr im;
+
+    if (pilights_cmdNameObjToGdImagePtr (interp, tclgdObj, &im) == TCL_ERROR) {
+	return TCL_ERROR;
+    }
+
+    pData->im = im;
+    return TCL_OK;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -425,7 +514,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	"setrow",
 	"open",
 	"close",
-	"attach",
+	"attach_gd",
+	"attach_spi",
 	(char *)NULL
     };
 
@@ -442,7 +532,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	OPT_SETROW,
 	OPT_OPEN,
 	OPT_CLOSE,
-	OPT_ATTACH
+	OPT_ATTACH_GD,
+	OPT_ATTACH_SPI
     };
 
     if (objc == 1) {
@@ -499,13 +590,26 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	break;
       }
 
-      case OPT_ATTACH: {
+      case OPT_ATTACH_GD: {
+	if (objc != 3) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "tclgdObject");
+	    return TCL_ERROR;
+	}
+
+	if (pilights_attach_gd (interp, pData, objv[2]) == TCL_ERROR) {
+	    return TCL_ERROR;
+	}
+	break;
+      }
+
+
+      case OPT_ATTACH_SPI: {
 	if (objc != 3) {
 	    Tcl_WrongNumArgs (interp, 2, objv, "tclspiObject");
 	    return TCL_ERROR;
 	}
 
-	if (pilights_attach (interp, pData, objv[2]) == TCL_ERROR) {
+	if (pilights_attach_spi (interp, pData, objv[2]) == TCL_ERROR) {
 	    return TCL_ERROR;
 	}
 	break;
@@ -610,11 +714,10 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
       }
 
       case OPT_WRITE: {
-	int row, delay = 0;
+	int delay = 0;
 	int nRows = 1;
 	int firstRow;
 	int ret;
-        int i;
 
 
 	if ((objc < 3) || (objc > 5)) {
@@ -639,21 +742,17 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
        }
 
        if (pData->spiData == NULL) {
-	    Tcl_AppendResult (interp, "must open an SPI device or attach a tclspi object before attempting to write", NULL);
+	    Tcl_AppendResult (interp, "must open an SPI device or attach a tclspi object using attach_spi before attempting to write", NULL);
 	    return TCL_ERROR;
        }
 
-       for (row = firstRow, i = 0; i < nRows; i++) {
-	    ret = plights_spi_write (pData, row++, nRows, delay);
-	    if (ret < 0) {
-		Tcl_AppendResult (interp, "can't perform spi transfer: ", Tcl_PosixError (interp), NULL);
-		return TCL_ERROR;
-	  }
-	  if (row >= pData->nRows) {
-	      row = 0;
-	  }
-	}
-      return TCL_OK;
+	ret = plights_spi_write (pData, firstRow, nRows, delay);
+	if (ret < 0) {
+	    Tcl_AppendResult (interp, "can't perform spi transfer: ", Tcl_PosixError (interp), NULL);
+	    return TCL_ERROR;
+        }
+
+	return TCL_OK;
     }
 
       case OPT_COPYROWS: {
@@ -676,35 +775,39 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainnRows (interp);
        }
 
-	pilightsCopyRows ((pilights_clientData *)cData, firstRow, destRow, nRows);
+	pilightsCopyRows (pData, firstRow, destRow, nRows);
 	break;
       }
 
       case OPT_COPY_FROM_IMAGE: {
 	int firstRow;
-	int firstPixel, nPixels;
+	int firstPixel, nPixels, nRows;
 	int x, y;
-	gdImagePtr im;
 
 	if (objc != 8) {
-	    Tcl_WrongNumArgs (interp, 2, objv, "gdObject x y firstRow firstPixel nPixels");
+	    Tcl_WrongNumArgs (interp, 2, objv, "firstRow nRows x y firstPixel nPixels");
 	    return TCL_ERROR;
 	}
 
-	if (pilights_cmdNameObjToGdImagePtr (interp, objv[2], &im) == TCL_ERROR) {
+	if (pData->im == NULL) {
+	    Tcl_AppendResult (interp, "attach a tclgd image using attach_gd first", NULL);
 	    return TCL_ERROR;
 	}
 
-       if (Tcl_GetIntFromObj (interp, objv[3], &x) == TCL_ERROR) {
+       if (Tcl_GetIntFromObj (interp, objv[2], &firstRow) == TCL_ERROR) {
+	   return pilights_complainfirstRow (interp);
+       }
+
+       if (Tcl_GetIntFromObj (interp, objv[3], &nRows) == TCL_ERROR) {
+	   return pilights_complainnRows (interp);
+       }
+
+       if (Tcl_GetIntFromObj (interp, objv[4], &x) == TCL_ERROR) {
 	   return pilights_complainx (interp);
        }
 
-       if (Tcl_GetIntFromObj (interp, objv[4], &y) == TCL_ERROR) {
+       if (Tcl_GetIntFromObj (interp, objv[5], &y) == TCL_ERROR) {
 	   return pilights_complainy (interp);
-       }
-
-       if (Tcl_GetIntFromObj (interp, objv[5], &firstRow) == TCL_ERROR) {
-	   return pilights_complainfirstRow (interp);
        }
 
        if (Tcl_GetIntFromObj (interp, objv[6], &firstPixel) == TCL_ERROR) {
@@ -715,7 +818,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	   return pilights_complainnPixels (interp);
        }
 
-	pilights_copyGDPixels (cData, im, x, y, firstRow, firstPixel, nPixels);
+	pilights_copyGDPixels (pData, firstRow, nRows, y, x, firstPixel, nPixels);
 	break;
       }
 
@@ -846,6 +949,7 @@ pilights_newObject (Tcl_Interp *interp, Tcl_Obj *nameObj, int nLights, int nRows
     pData->nRows = nRows;
     pData->spiData = NULL;
     pData->mySpiData = 0;
+    pData->im = NULL;
 
     // allocate the array of pointers to rows
     pData->rowData = (unsigned char **) ckalloc (sizeof(unsigned char *) * nRows);
