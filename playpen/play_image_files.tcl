@@ -8,6 +8,10 @@ set nLoops 4
 set nLEDs 160
 set nRows 5000
 set delayBetweenFilesMS 500
+set fadeSteps 40
+
+set nLoops 2
+set delayUsecs 32000
 
 package require tclgd
 package require pilights
@@ -54,23 +58,41 @@ proc setup {} {
 proc copy_image {gdObject piObject} {
     $piObject attach_gd $gdObject
 
-     $piObject copy_from_image 0 [$piObject nRows] 0 0 0 [$piObject nLights]
+     $piObject copy_from_image 0 [$gdObject height] 0 0 0 [$piObject nLights]
 }
 
 proc play_images {files} {
     puts "play_images called with files: $files"
     foreach file $files {
         puts $file
-        set image [load_image $file]
-	copy_image $image lights
 
-	for {set i 0} {$i < $::nLoops} {incr i} {
-	    lights write 0 [$image height] $::delayUsecs
-	}
+        set image [load_image $file]
+	set height [$image height]
+	lights attach_gd $image
+
+	 lights copy_from_image $::fadeSteps $height 0 0 0 [lights nLights]
+
 	$image delete
 
-	lights clear 0
-	lights write 0 1
+	 # create a gradient from black to the first line of data (fade in)
+	 lights clear 0
+	 lights gradient $::fadeSteps 0 $::fadeSteps
+
+	# create a fade out at the end
+	set lastLine [expr {$height + $::fadeSteps - 1}]
+	lights fade $lastLine $::fadeSteps
+
+	# play the fade in (gradient from 0 to the first line of pixels)
+	lights write 0 $::fadeSteps $::delayUsecs
+
+	# loop playing the image
+	for {set i 0} {$i < $::nLoops} {incr i} {
+	    lights write $::fadeSteps $height $::delayUsecs
+	}
+
+	# play fade out
+	lights write $lastLine $::fadeSteps $::delayUsecs
+
 	after $::delayBetweenFilesMS
     }
 }
@@ -80,6 +102,6 @@ setup
 if {!$tcl_interactive} {
     play_images $argv
 } else {
-    puts "interactive, mess around like by doing copy_image $gd lights or lights write 0 100 5000"
+    puts "interactive, mess around like by doing play_images file or lights write 0 100 5000"
 }
 

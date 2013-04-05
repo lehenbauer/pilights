@@ -27,6 +27,10 @@ pilights \- tcl interface to do fancy things with LED vectors.
 .br
 \fIobjName\fB copyrows\fI firstRow destRow nRows\fR
 .br
+\fIobjName\fB gradient\fI toColorRow firstRow nRows\fR
+.br
+\fIobjName\fB fade\fI firstRow nRows\fR
+.br
 \fIobjName\fB attach_gd\fI tclgdObject\fR
 .br
 \fIobjName\fB copy_from_image\fI firstRow nRows y x firstPixel nPixels\fR
@@ -86,6 +90,12 @@ Pixels are copied pixel-for-pixel.  If the number of pixels requested runs off t
 For sanity, the list must contain a minimum of three elements and its length must be a multiple of three.
 .PP
 Note that since the RGB values are stored lamp-ready and retrieved from that state, the least significant bit of the eight-bit color that was originally set is lost.  A pixel value of one is returned as zero, a pixel value of two or three is returned as two, and so on.
+.PP
+\fIobjName\fB gradient\fI toColorRow firstRow nRows\fR sets a series of rows to be a gradient starting with 100% of the colors of the first row, dissolving to the colors of the row specified by toColorRow.
+.PP
+At this time it's a straight RGB fade but it wouldn't be unreasonable to convert to HSV values and fade between them.  I don't know.
+.PP
+\fIobjName\fB fade\fI firstRow nRows\fR is a special case of gradient; it constructs a fade to black across nRows starting with the firstRow.
 .PP
 .SH SPI INTERFACE ATTACHING AND DETACHING
 To open an SPI device for writing, use \fIobjName\fB open\fI spiDevice\fR.  On the Raspberry Pi, \fIspiDevice\fR is typically \fB/dev/spidev0.0\fR.  This opens configures the SPI interface to default values of read and write SPI mode 0, 8-bits per word, and a speed of two megahertz.

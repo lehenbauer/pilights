@@ -106,6 +106,79 @@ pilightsFillRows (pilights_clientData *pData, int firstRow, int nRows, int r, in
 }
 
 static void
+pilightsGradientFillRows (pilights_clientData *pData, int toColorsOfRow, int firstRow, int nRows) {
+    int row;
+    int i;
+    int led;
+    unsigned char *rowPtr;
+
+    float *rowFloatsFrom = (float *)ckalloc (sizeof(float) * pData->nLights * 3);
+    float *rowFloatsTo = (float *)ckalloc (sizeof(float) * pData->nLights * 3);
+
+    rowPtr = pData->rowData[firstRow];
+    for (i = 0; i < pData->nLights * 3; i++) {
+        rowFloatsFrom[i] = LED_TO_PIXEL(pData->rowData[firstRow][i]);
+        rowFloatsTo[i] = LED_TO_PIXEL(pData->rowData[toColorsOfRow][i]);
+    }
+
+    for (row = firstRow + 1, i = 1; i < nRows; i++) {
+	float ratio = (float) i / (float) (nRows - 1);
+
+        rowPtr = pData->rowData[row++];
+        for (led = 0; led < pData->nLights * 3; led++) {
+	    unsigned char c = rowFloatsFrom[led] * (1.0 - ratio) + rowFloatsTo[led] * ratio;
+	    *rowPtr++ = PIXEL_TO_LED(c);
+	}
+
+	// don't wrap, just bail if they go off the end
+	if (row >= pData->nRows) {
+	    break;
+	}
+    }
+
+    ckfree ((char *)rowFloatsFrom);
+    ckfree ((char *)rowFloatsTo);
+}
+
+static void
+pilightsFadeRows (pilights_clientData *pData, int firstRow, int nRows) {
+    int row;
+    int i;
+    int led;
+    unsigned char *rowPtr;
+
+    float *rowFloatsFrom = (float *)ckalloc (sizeof(float) * pData->nLights * 3);
+
+    rowPtr = pData->rowData[firstRow];
+    for (led = 0; led < pData->nLights * 3; led++) {
+        rowFloatsFrom[led] = (float)LED_TO_PIXEL(*rowPtr++);
+    }
+
+    for (row = firstRow + 1, i = 1; i < nRows; i++) {
+        float ratio = (float) i / (float) (nRows - 1);
+
+	// printf("fade row %d, ratio %f, data: ", row, ratio);
+
+        rowPtr = pData->rowData[row++];
+        for (led = 0; led < pData->nLights * 3; led++) {
+	    unsigned char c = (unsigned char)(int)(rowFloatsFrom[led] * (1.0 - ratio));
+	    // printf("%d ", c);
+
+	    *rowPtr++ = PIXEL_TO_LED(c);
+	}
+	// printf("\n");
+
+	// don't wrap, just bail if they go off the end
+	if (row >= pData->nRows) {
+	    break;
+	}
+    }
+
+    ckfree ((char *)rowFloatsFrom);
+}
+
+
+static void
 pilightsFillPixels (pilights_clientData *pData, int row, int firstPixel, int nPixels, int r, int g, int b) {
     int pixel, lastPixel;
     unsigned char *rowPtr;
@@ -337,7 +410,7 @@ plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int dela
 	}
 
 
-	if (row++ >= nRows) {
+	if (row++ >= pData->nRows) {
 	    row = 0;
 	}
     }
@@ -517,6 +590,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	"clear",
 	"copyrows",
 	"copy_from_image",
+	"gradient",
+	"fade",
 	"getrow",
 	"setrow",
 	"open",
@@ -535,6 +610,8 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	OPT_CLEAR,
 	OPT_COPYROWS,
 	OPT_COPY_FROM_IMAGE,
+	OPT_GRADIENT,
+	OPT_FADE,
 	OPT_GETROW,
 	OPT_SETROW,
 	OPT_OPEN,
@@ -826,6 +903,63 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
        }
 
 	pilights_copyGDPixels (pData, firstRow, nRows, y, x, firstPixel, nPixels);
+	break;
+      }
+
+      case OPT_GRADIENT: {
+	int toColorsOfRow;
+	int firstRow;
+	int nRows;
+
+	if (objc != 5) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "toColorsOfRow firstRow nRows");
+	    return TCL_ERROR;
+	}
+
+	if (pData->im == NULL) {
+	    Tcl_AppendResult (interp, "attach a tclgd image using attach_gd first", NULL);
+	    return TCL_ERROR;
+	}
+
+	if (Tcl_GetIntFromObj (interp, objv[2], &toColorsOfRow) == TCL_ERROR) {
+	   return pilights_complainfirstRow (interp);
+	}
+
+	if (Tcl_GetIntFromObj (interp, objv[3], &firstRow) == TCL_ERROR) {
+	   return pilights_complainfirstRow (interp);
+	}
+
+	if (Tcl_GetIntFromObj (interp, objv[4], &nRows) == TCL_ERROR) {
+	    return pilights_complainnRows (interp);
+	}
+
+	pilightsGradientFillRows (pData, toColorsOfRow, firstRow, nRows);
+	break;
+      }
+
+      case OPT_FADE: {
+	int firstRow;
+	int nRows;
+
+	if (objc != 4) {
+	    Tcl_WrongNumArgs (interp, 2, objv, "firstRow nRows");
+	    return TCL_ERROR;
+	}
+
+	if (pData->im == NULL) {
+	    Tcl_AppendResult (interp, "attach a tclgd image using attach_gd first", NULL);
+	    return TCL_ERROR;
+	}
+
+	if (Tcl_GetIntFromObj (interp, objv[2], &firstRow) == TCL_ERROR) {
+	   return pilights_complainfirstRow (interp);
+	}
+
+	if (Tcl_GetIntFromObj (interp, objv[3], &nRows) == TCL_ERROR) {
+	    return pilights_complainnRows (interp);
+	}
+
+	pilightsFadeRows (pData, firstRow, nRows);
 	break;
       }
 

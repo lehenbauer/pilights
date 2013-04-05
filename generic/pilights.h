@@ -11,7 +11,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define PIXEL_TO_LED(x) ((x >> 1) | 0x80)
+#define PIXEL_TO_LED(x) (unsigned char)((x >> 1) | 0x80)
 
 #define LED_TO_PIXEL(x) ((x << 1) & 0xff)
 
