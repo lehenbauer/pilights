@@ -170,22 +170,22 @@ pilights_copyGDPixels (pilights_clientData *pData, int startRow, int nRows, int 
     gdImagePtr im = pData->im;
     int i;
 
-    printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
+    // printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
 
     assert (pData->im != NULL);
 
     if (startPixel > pData->nLights) {
-        printf("\nstartPixel > nData->nLights\n");
+        // printf("\nstartPixel > nData->nLights\n");
         return;
     }
 
     if (startX > im->sx) {
-        printf("\nstartX > im->sx\n");
+        // printf("\nstartX > im->sx\n");
         return;
     }
 
     if (startY > im->sy) {
-        printf("\nstartY > im->sy\n");
+        // printf("\nstartY > im->sy\n");
 	return;
     } 
 
@@ -209,7 +209,7 @@ pilights_copyGDPixels (pilights_clientData *pData, int startRow, int nRows, int 
         nPixels = im->sx - startX;
     }
 
-    printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
+    // printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
 
     y = startY;
     while (nRows-- > 0) {
@@ -313,13 +313,13 @@ plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int dela
     int i, row, ret;
     struct spi_ioc_transfer spi;
 
-    spi.delay_usecs = delayUsecs;
+    spi.delay_usecs = 0;;
     spi.rx_buf = (unsigned long) NULL;
     spi.len = pData->nRowBytes;
     spi.speed_hz = pData->spiData->writeSpeed;
     spi.bits_per_word = 8;
 
-    printf("plights_spi_write firstRow %d, nRows %d, delay %d\n", firstRow, nRows, delayUsecs);
+    // printf("plights_spi_write firstRow %d, nRows %d, delay %d\n", firstRow, nRows, delayUsecs);
 
     for (i = 0, row = firstRow; i < nRows; i++) {
 	unsigned char *rowPtr = pData->rowData[row];
@@ -330,6 +330,12 @@ plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int dela
 	if (ret < 0) {
 	    return ret;
 	}
+
+	ret = usleep(delayUsecs);
+	if (ret < 0) {
+	    return ret;
+	}
+
 
 	if (row++ >= nRows) {
 	    row = 0;
