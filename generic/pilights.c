@@ -211,9 +211,10 @@ pilights_copyGDPixels (pilights_clientData *pData, int startRow, int nRows, int 
 
     printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
 
+    y = startY;
     while (nRows-- > 0) {
 	rowPtr = pData->rowData[row] + 3 * startPixel;
-        for (i = 0, y = startY; i < nPixels; i++, x++) {
+        for (i = 0, x = startX; i < nPixels; i++, x++) {
 	    pixelColor = im->trueColor ? gdImageTrueColorPixel (im, x, y) : gdImagePalettePixel (im, x, y);
 	    *rowPtr++ = PIXEL_TO_LED(gdImageGreen (im, pixelColor));
 	    *rowPtr++ = PIXEL_TO_LED(gdImageRed (im, pixelColor));

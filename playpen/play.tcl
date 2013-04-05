@@ -50,11 +50,26 @@ proc copy_image {gdObject piObject} {
      $piObject copy_from_image 0 [$piObject nRows] 0 0 0 160
 }
 
+proc play_images {files} {
+    puts "play_images called with files: $files"
+    foreach file $files {
+        puts $file
+        set image [load_image $file]
+	copy_image $image lights
+
+	for {set i 0} {$i < 2} {incr i} {
+	    lights write 0 [$image height] 128000
+	}
+	$image delete
+	after 2000
+    }
+}
+
 #lights write 10 1 5000
 
 if {!$tcl_interactive} {
-    puts "foo"
+    play_images $argv
 } else {
-    puts "'sinwave' to see something"
+    puts "interactive, mess around like by doing copy_image $gd0 lights or lights write 0 100 5000"
 }
 
