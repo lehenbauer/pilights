@@ -61,9 +61,22 @@ proc copy_image {gdObject piObject} {
      $piObject copy_from_image 0 [$gdObject height] 0 0 0 [$piObject nLights]
 }
 
+proc ldraw {_L} {
+    upvar 1 $_L L
+    set pos [expr {int(rand()*[llength $L])}]
+    set res [lindex $L $pos]
+    set L [lreplace $L $pos $pos]
+    set res
+}
+
 proc play_images {files} {
     puts "play_images called with files: $files"
-    foreach file $files {
+    #foreach file $files
+    while {true} {
+        set file [ldraw files]
+	if {$file == ""} {
+	    break
+	}
         puts $file
 
         set image [load_image $file]
