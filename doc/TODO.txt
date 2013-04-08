@@ -1,3 +1,15 @@
 
 switch fade and gradient to work vertical rather than horizontally and they
 won't have to create  and free floating point vectors to work with.  
+
+use gd drawing primitives to draw stuff to create images.
+
+do symmetry at times with horizontal reflection and at times also with vertcial reflection, i.e. reflection about some axis parallel to the X axis.
+
+Drawing filled and stroke circles will look cool during playback.
+
+Also add a primitive for shifting / rotating images.  beyond just circular shifting left allow i guess circular shifting of subranges.  so if you circle right the left half of the lights and circle left the right half, it will rotate inwards.
+
+Add support for partial fills.  This is a lot like drawing rectangles.  Exactly like drawing rectangles if you use the graphics primitives to make lighting sequences.
+
+Still need to visit 
