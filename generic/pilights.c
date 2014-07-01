@@ -308,6 +308,97 @@ pilights_copyGDPixels (pilights_clientData *pData, int startRow, int nRows, int 
 /*
  *----------------------------------------------------------------------
  *
+ * pilights_copyToGDpixels --
+ *
+ *    Given a tclgd object name, a row and a starting pixel number,
+ *    copy pixels from our object to a GD object
+ *
+ * Results:
+ *    None.
+ *
+ *----------------------------------------------------------------------
+ */
+static void 
+pilights_copyToGDPixels (pilights_clientData *pData, int startRow, int nRows, int startY, int startX, int startPixel, int nPixels)
+{
+    int x, y;
+    int pixelColor;
+    int row = startRow;
+    unsigned char *rowPtr;
+    gdImagePtr im = pData->im;
+    int i;
+
+    // printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
+
+    assert (pData->im != NULL);
+
+    if (startPixel > pData->nLights) {
+        // printf("\nstartPixel > nData->nLights\n");
+        return;
+    }
+
+    if (startX > im->sx) {
+        // printf("\nstartX > im->sx\n");
+        return;
+    }
+
+    if (startY > im->sy) {
+        // printf("\nstartY > im->sy\n");
+	return;
+    } 
+
+    if (startRow < 0) {
+        startRow = 0;
+    }
+
+    if (startX < 0) {
+        startX = 0;
+    }
+
+    if (startY < 0) {
+        startY = 0;
+    }
+
+    if (startPixel + nPixels > pData->nLights) {
+        nPixels = pData->nLights - startPixel;
+    }
+
+    if (im->sx - startX < nPixels) {
+        nPixels = im->sx - startX;
+    }
+
+    // printf ("\nstartRow %d, nRows %d, startY %d, startX %d, startPixel %d, nPixels %d\n", startRow, nRows, startY, startX, startPixel, nPixels);
+
+    y = startY;
+    while (nRows-- > 0) {
+	rowPtr = pData->rowData[row] + 3 * startPixel;
+        for (i = 0, x = startX; i < nPixels; i++, x++) {
+	    int red, green, blue;
+	    int pixelCOlor;
+
+	    green = LED_TO_PIXEL(*rowPtr++);
+	    red = LED_TO_PIXEL(*rowPtr++);
+	    blue = LED_TO_PIXEL(*rowPtr++);
+
+	    pixelColor = im->trueColor ? gdTrueColorAlpha (red, green, blue, gdAlphaOpaque) : gdImageColorExact (im, red, green, blue);
+	    gdImageSetPixel (im, x, y, color);
+	}
+	    
+        if (row++ >= pData->nRows) {
+	    row = 0;
+	}
+
+	if (++y >= im->sy) {
+	    y = 0;
+	}
+    }
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * pilights_cmdNameObjToSPI --
  *
  *    Given a Tcl_Obj containing a name for an existing tclspi SPI
