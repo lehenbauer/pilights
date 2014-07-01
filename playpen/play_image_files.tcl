@@ -3,15 +3,19 @@
 #  to the LEDs
 #
 
-set delayUsecs 8000
+#set delayUsecs 8000
+#set delayUsecs 24000
+#set delayUsecs 33000
+set delayUsecs 66000
+#set delayUsecs [expr 66000 * 4]
+
 set nLoops 4
 set nLEDs 160
 set nRows 5000
-set delayBetweenFilesMS 500
+set delayBetweenFilesMS 200
 set fadeSteps 40
 
-set nLoops 2
-set delayUsecs 32000
+set nLoops 1
 
 package require tclgd
 package require pilights
