@@ -322,7 +322,6 @@ static void
 pilights_copyToGDPixels (pilights_clientData *pData, int startRow, int nRows, int startY, int startX, int startPixel, int nPixels)
 {
     int x, y;
-    int pixelColor;
     int row = startRow;
     unsigned char *rowPtr;
     gdImagePtr im = pData->im;
@@ -374,14 +373,14 @@ pilights_copyToGDPixels (pilights_clientData *pData, int startRow, int nRows, in
 	rowPtr = pData->rowData[row] + 3 * startPixel;
         for (i = 0, x = startX; i < nPixels; i++, x++) {
 	    int red, green, blue;
-	    int pixelCOlor;
+	    int pixelColor;
 
 	    green = LED_TO_PIXEL(*rowPtr++);
 	    red = LED_TO_PIXEL(*rowPtr++);
 	    blue = LED_TO_PIXEL(*rowPtr++);
 
 	    pixelColor = im->trueColor ? gdTrueColorAlpha (red, green, blue, gdAlphaOpaque) : gdImageColorExact (im, red, green, blue);
-	    gdImageSetPixel (im, x, y, color);
+	    gdImageSetPixel (im, x, y, pixelColor);
 	}
 	    
         if (row++ >= pData->nRows) {
