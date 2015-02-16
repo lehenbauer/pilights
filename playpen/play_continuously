@@ -1,0 +1,5 @@
+#!/bin/sh
+while true
+do
+tclsh8.5 play_image_files.tcl symmetric/* sym2/*
+done
