@@ -9,30 +9,38 @@ See the file "license.terms" for complete information.
 
 Pilights was written by Karl Lehenbauer.
 
-USING pilights
-============
+### Building pilights
+
+Pilights requires tclspi, a Tcl interface to the Serial Peripheral Interface Bus on the Raspberry Pi from https://github.com/lehenbauer/tclspi
+
+```tcl
+./configure --with-tcl=/usr/lib/tcl8.5 --with-tclinclude=/usr/include/tcl8.5 --enable-shared
+make
+sudo make install
+```
+
+Edit /etc/modprobe.d/raspi-blacklist.conf and comment out the blacklist line for spi-bcm2708.
+
+Add "dtparam=spi=on" to your /boot/config.txt and reboot.
+
+### Using pilights
 
 package require pilights
 
-
-PILIGHTS QUICK REF
-===============
+### Pilights Quick Ref
 
 Please see the pilights manpage in the doc directory.
 
-EXAMPLES
-========
+### Examples
 
 A number of simple examples of the use of tcl.gd can be found in the playpen
 directory.
 
-BUGS
-====
+### Bugs
 
 Yes.
 
-CONTENTS
-========
+### Contents
 
 Makefile.in	Makefile template.  The configure script uses this file to
 		produce the final Makefile.
@@ -63,8 +71,7 @@ tclconfig/	This directory contains various template files that build
 	tcl.m4		Collection of Tcl autoconf macros.  Included by
 			aclocal.m4 to define SC_* macros.
 
-UNIX BUILD
-==========
+### Unix build
 
 Building under most UNIX systems is easy, just run the configure script
 and then run make. 
@@ -74,7 +81,7 @@ and then run make.
 	$ make
 	$ make install
 
-WINDOWS BUILD
-=============
+### Windows build
 
 Nah.
+

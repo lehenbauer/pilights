@@ -6,6 +6,12 @@
 # apt-get install tcl8.5-dev
 # apt-get install libgd2-noxpm-dev
 #
+#
+# edit /etc/modprobe.d/raspi-blacklist.conf and comment out the blacklist
+#   line for spi-bcm2708
+#
+# add "dtparam=spi=on" to your /boot/config.txt and reboot
+#
 
 ./configure --with-tcl=/usr/lib/tcl8.5 --with-tclinclude=/usr/include/tcl8.5 --enable-shared --enable-symbols
 
