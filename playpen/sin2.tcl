@@ -1,6 +1,6 @@
 
 
-package require tclspi
+package require spi
 package require pilights
 
 set nLEDs 160

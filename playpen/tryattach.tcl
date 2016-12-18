@@ -7,7 +7,7 @@
 #  fine-grained control of the SPI bus configuration.
 #
 
-package require tclspi
+package require spi
 package require pilights
 
 proc setup_spi {} {
