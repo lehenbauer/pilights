@@ -879,7 +879,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
        if (firstPixel < 0) {
            firstPixel = 0;
        } else if (firstPixel >= pData->nLights) {
-	    Tcl_AppendResult (interp, "Error: first pixel is out of range of defined lights", NULL);
+	    Tcl_AppendResult (interp, "Error: first pixel (", Tcl_GetString (objv[3]), ") is out of range of defined lights", NULL);
 	    return TCL_ERROR;
        }
 
