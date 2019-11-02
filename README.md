@@ -13,8 +13,9 @@ Pilights was written by Karl Lehenbauer.
 
 Pilights requires tclspi, a Tcl interface to the Serial Peripheral Interface Bus on the Raspberry Pi from https://github.com/lehenbauer/tclspi
 
-```tcl
-./configure --with-tcl=/usr/lib/tcl8.5 --with-tclinclude=/usr/include/tcl8.5 --enable-shared
+```sh
+autoconf
+./configure --with-tcl=/usr/lib/tcl8.6
 make
 sudo make install
 ```
