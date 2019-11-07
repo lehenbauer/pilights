@@ -1,6 +1,3 @@
-
-Z
-
 # pilights - doing fancy things with RGB LED strips using Tcl and a Raspberry Pi
 
 <img src="images/lit-strip.jpg" heght="364" width="485"> 
@@ -157,15 +154,26 @@ proc show {} {
 show
 ```
 
+PDF documentation of pilights can be found at https://github.com/lehenbauer/pilights/blob/master/doc/pilights.pdf
 
-, and can even use PNG, GIF and JPEG files and emit successive rows of pixels from the image to the corresponding LEDs.
+When you create a pilights object, you say `pilights create objName nLights nRows` where nLights is the number of lights and nRows is the number of rows of data to create.  Think of a vector of vec tors of light settings or, in other words, a two-dimensional array.
 
-The talk will include demos of both the Arduino and Tcl/pilights versions, with all supporting software fully open-sourced. 
+A number of methods are provided.  fillrows fills a range of rows with an RGB value.  setpixels sets a range of pixels in one row to an RGB value, while copyrows copys a range of rows for one location to another, while getrow reads a row and returns it as a Tcl list and setrow takes a row number and a Tcl list and sets the row to those values.
 
-You take a Raspberry Pi, load Debian Linux on it, grab tclspi to get Tcl access to the Serial Peripheral Interface Bus and pilights 
+After setting up all the values, the write method lets you write out a row or a number of rows with a specified delay in microseconds.
 
+And I implemented the color wheel.  The gradient method will generate a gradient from one color row to another, across the number of rows specified.  And it looks good.
 
+### the next level
 
-SCLK and MOSI
+When I started thinking about this stuff as a two-dimensional matrix of pixels then it made me think of other things that are two-dimensional matrix of pixels, graphical images.
+
+Trying to write into these existing arrays using my simple setpixels tool was clumsy.  It could be really neat to accept images in PNG, JPEG, GIF, etc, and draw them out to the LED strip.
+
+So I did that.  Using the tcl.gd package to interface to the GD drawing library, I extended pilights to be able to attach tcl.gd objects using a new attach_gd method that takes the tcl.gd object as an argument.
+
+The copy_from_image method reads pixels from the GD library image and copies them into the matrix.  This allows pixel sequences of nearly unlimited size and complexity to be created and stored efficiently as PNG24 images, and familiar tools such as Photoshop and Pixelmator can be used to create them.
+
+The pixels are copied left to right.  I found a lot of interesting images on the web that played nicely and made interesting patterns on the light strip.  But only the first 120 pixels are used.  Using tcl.gd's copy_resampled, though, allowed images to be conformed to the number of pixels in the light strip.  This is also nice because it points to a certain resolution independence -- sequences can be generated in a paint program and played on strings of variable width with similar presentation regardless of width.
 
 
