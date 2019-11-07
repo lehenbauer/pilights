@@ -13,6 +13,8 @@ LED strips are built with a number of different driver chips to make each LED su
 
 I elected to use RGB LED strips based on the LPD-8806 controller/driver chips.  It can do seven bits of color per channel for 21 bits per pixel, so each individual pixel can be set to one of a little over two million colors.  Also the LPD-8806 does not require precise timing or refreshing, which reduces complexity.
 
+<img src="images/strip-closeup.jpg">
+
 The strips have four wires.  One is for 5 volt DC power, one for ground, one for clock and one for data.  When the clock line is pulsed high, the high or low voltage on the data line is shifted into the shift registers of the LPD-8806.
 
 Initial experiments were done using an Arduino single board computer programmed in C++, and produced numerous visually interesting patterns and animations.  
@@ -126,6 +128,34 @@ tclspi is open-sourced under the Berkeley copyright and available at https://git
 
 Once I could write to the SPI bus the next thing to do was write code to talk specifically to the LED strips.  In the first iteration of pilights I provided a way to set ranges of pixels to specific colors and create arrays of values and cycle through them.
 
+Below is Tcl code that defines a wipe and invokes the wipe to wipe in from black to green, pause, and then wipe from green to light blue.
+
+```tcl
+package require spi
+package require pilights
+
+set nLEDs 160
+
+pilight create lights $nLEDs 1
+
+lights open /dev/spidev0.0
+
+proc low_fill {startR startG startB endR endG endB delay} {
+    lights fillrows 0 1 $startR $startG $startB
+    lights write 0 1 $delay
+    for {set i 0} {$i < $::nLEDs} {incr i} {
+	lights setpixels 0 $i 1 $endR $endG $endB
+	lights write 0 1 $delay
+
+proc show {} {
+    low_fill 0 0 0 0 255 0 30000
+    after 5000
+    low_fill 0 255 0 0 255 255 30000
+    after 2000
+}
+
+show
+```
 
 
 , and can even use PNG, GIF and JPEG files and emit successive rows of pixels from the image to the corresponding LEDs.
