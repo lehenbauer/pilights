@@ -1,9 +1,9 @@
 
-
+Z
 
 # pilights - doing fancy things with RGB LED strips using Tcl and a Raspberry Pi
 
-![alt text](lit-strip.jpg "Logo Title Text 1")
+<img src="images/lit-strip.jpg" heght="364" width="485"> 
 
 RGB LED strips are cool.  You write three bytes of RGB data to the strip and it sets the color of the first LED.  Shift registers built into the strip transfer the color previously set in the first LED into the second one, from the second LED to the third, etc.  Hundreds of LEDs can be updated tens of times a second with each LED capable of presenting one of millions of colors.
 
