@@ -472,17 +472,20 @@ pilights_cmdNameObjToGdImagePtr (Tcl_Interp *interp, Tcl_Obj *commandNameObj, gd
  *  the SPI device
  */
 static int
-plights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int delayUsecs) {
+pilights_spi_write (pilights_clientData *pData, int firstRow, int nRows, int delayUsecs) {
     int i, row, ret;
     struct spi_ioc_transfer spi;
 
-    spi.delay_usecs = 0;;
+    // zero out the spi structure
+    memset (&spi, 0, sizeof(spi));
+
+    spi.delay_usecs = 0;
     spi.rx_buf = (unsigned long) NULL;
     spi.len = pData->nRowBytes;
     spi.speed_hz = pData->spiData->writeSpeed;
     spi.bits_per_word = 8;
 
-    // printf("plights_spi_write firstRow %d, nRows %d, delay %d\n", firstRow, nRows, delayUsecs);
+    // printf("pilights_spi_write firstRow %d, nRows %d, delay %d\n", firstRow, nRows, delayUsecs);
 
     for (i = 0, row = firstRow; i < nRows; i++) {
 	unsigned char *rowPtr = pData->rowData[row];
@@ -920,7 +923,7 @@ pilights_ObjectObjCmd(ClientData cData, Tcl_Interp *interp, int objc, Tcl_Obj *C
 	    return TCL_ERROR;
        }
 
-	ret = plights_spi_write (pData, firstRow, nRows, delay);
+	ret = pilights_spi_write (pData, firstRow, nRows, delay);
 	if (ret < 0) {
 	    Tcl_AppendResult (interp, "can't perform spi transfer: ", Tcl_PosixError (interp), NULL);
 	    return TCL_ERROR;
