@@ -1,17 +1,17 @@
 #
 # Debian configure command for pilights
 #
-# Requires tcl-dev and libgd2-noxpm-dev or libgd2-xpm-dev
+# Requires tcl-dev and libgd-dev
 #
-# apt-get install tcl8.5-dev
-# apt-get install libgd2-noxpm-dev
+# apt-get install tcl8.6-dev libgd-dev
 #
+# install tcl.gd from https://github.com/flightaware/tcl.gd
 #
-# edit /etc/modprobe.d/raspi-blacklist.conf and comment out the blacklist
-#   line for spi-bcm2708
+B
+B
+B
+# enable the SPI interface by going into raspi-config, choose option 5, interfacing options, P4 SPI enable SPI, choose Yes to would you like the SPI interface to be enabled
 #
-# add "dtparam=spi=on" to your /boot/config.txt and reboot
-#
-
-./configure --with-tcl=/usr/lib/tcl8.5 --with-tclinclude=/usr/include/tcl8.5 --enable-shared --enable-symbols
+autoconf
+./configure --with-tcl=/usr/lib/tcl8.6
 

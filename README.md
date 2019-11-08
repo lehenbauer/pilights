@@ -13,6 +13,10 @@ Pilights was written by Karl Lehenbauer.
 
 Pilights requires tclspi, a Tcl interface to the Serial Peripheral Interface Bus on the Raspberry Pi from https://github.com/lehenbauer/tclspi
 
+It also requires tcl.gd, a Tcl interface to the GD graphics drawing library from FlightAware at https://github.com/flightaware/tcl.gd
+
+Follow README.Debian 
+
 ```sh
 autoconf
 ./configure --with-tcl=/usr/lib/tcl8.6
